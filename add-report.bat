@@ -13,14 +13,6 @@ if /i "%~2"=="weekly" set dest=weekly
 echo === Copying "%~nx1" into %dest%/ ===
 copy /y "%~1" "%dest%\%~nx1"
 git add -A
-git commit -m "add %dest% report: %~nx1"
-git push
-if errorlevel 1 (
-  echo.
-  echo [X] Push FAILED. Check network or run: git push
-  pause
-) else (
-  echo.
-  echo [OK] Online at: https://lianrkcnd.github.io/reports/%dest%/%~nx1
-  timeout /t 5 >nul
-)
+git commit -m "add %dest% report: %~nx1" >nul 2>&1
+echo === Pushing to GitHub ===
+call "%~dp0push.bat"
