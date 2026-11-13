@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日报 / 周报索引</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    max-width: 760px; margin: 0 auto; padding: 24px 16px 60px;
+    background: #fafafa; color: #1f2328;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0d1117; color: #e6edf3; }
+    .card { background: #161b22 !important; border-color: #30363d !important; }
+    a { color: #58a6ff; }
+    .empty { color: #8b949e; }
+  }
+  h1 { font-size: 1.5em; margin: 0 0 4px; }
+  .sub { color: #656d76; font-size: .95em; margin-bottom: 24px; }
+  .card {
+    background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 20px;
+  }
+  h2 { font-size: 1.1em; margin: 0 0 12px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 7px 0; border-bottom: 1px solid #d8dee466; display: flex; justify-content: space-between; gap: 12px; }
+  li:last-child { border-bottom: none; }
+  a { text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .empty { color: #656d76; font-size: .9em; padding: 6px 0; }
+  .footer { text-align: center; color: #656d76; font-size: .85em; margin-top: 32px; }
+</style>
+</head>
+<body>
+  <h1>📊 日报 / 周报</h1>
+  <div class="sub">点击标题即可在线阅读 · 列表自动同步自 GitHub 仓库</div>
+
+  <div class="card">
+    <h2>📅 日报</h2>
+    <ul id="daily"><li class="empty">加载中…</li></ul>
+  </div>
+
+  <div class="card">
+    <h2>📈 周报</h2>
+    <ul id="weekly"><li class="empty">加载中…</li></ul>
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/lianrkcnd/reports" target="_blank">GitHub 仓库</a>
+  </div>
+
+<script>
+const BASE = location.origin + location.pathname.replace(/index\.html$/, '');
+async function load(kind, elId) {
+  const ul = document.getElementById(elId);
+  try {
+    const res = await fetch(`https://api.github.com/repos/lianrkcnd/reports/contents/${kind}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const files = await res.json();
+    const reports = files
+      .filter(f => f.type === 'file' && /\.(html?|pdf)$/i.test(f.name) && !f.name.startsWith('.'))
+      .sort((a, b) => b.name.localeCompare(a.name)); // 新的在前
+    ul.innerHTML = reports.length
+      ? reports.map(f =>
+          `<li><a href="${BASE}${kind}/${encodeURIComponent(f.name)}" target="_blank">${f.name}</a></li>`
+        ).join('')
+      : '<li class="empty">暂无内容</li>';
+  } catch (e) {
+    ul.innerHTML = `<li class="empty">列表加载失败（${e.message}），可直接访问 ${kind}/ 目录</li>`;
+  }
+}
+load('daily', 'daily');
+load('weekly', 'weekly');
+</script>
+</body>
+</html>
