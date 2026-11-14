@@ -280,15 +280,22 @@ function renderRR(){
 
 // ── 4 · OI 墙 + 持仓变动（按所选日期渲染 + 行权价范围筛选） ──
 const oiCharts={},flowCharts={},oiState={};
-const strikeSel={};  // key: t|kind -> {lo,hi}（null=该侧不限）
-function sliceIdx(e,sel){const out=[];e.strikes.forEach((k,z)=>{if((sel.lo==null||k>=sel.lo)&&(sel.hi==null||k<=sel.hi))out.push(z)});return out}
+// 行权价筛选状态：{mode:'preset',pct} 随所选日期 fwd 联动；{mode:'custom',lo,hi} 固定值（null=该侧不限）
+// 数据本身即每日 50% 范围（gen_payload 按 fwd±0.25 过滤导出），默认 50%区间=全量展示
+const strikeSel={};
+function selBounds(key,t){
+  const s=strikeSel[key]||{mode:'preset',pct:0.25};
+  if(s.mode==='preset'){const e=hc(t,SECS.oi);const f=(e&&e.fwd!=null)?e.fwd:0;return {lo:f*(1-s.pct),hi:f*(1+s.pct)}}
+  return {lo:s.lo,hi:s.hi};
+}
+function sliceIdx(e,key,t){const b=selBounds(key,t);const out=[];e.strikes.forEach((k,z)=>{if((b.lo==null||k>=b.lo)&&(b.hi==null||k<=b.hi))out.push(z)});return out}
 (function buildOiContainers(){
   const oiCont=document.getElementById('oiChartsContainer'),flowCont=document.getElementById('flowChartsContainer');
   function barHtml(t,kind){return `<div class="strike-bar" data-t="${t}" data-kind="${kind}"><span>行权价</span>`
-    +`<button class="rng-btn sb-p" data-pct="0.05">±5%</button>`
-    +`<button class="rng-btn sb-p" data-pct="0.10">±10%</button>`
+    +`<button class="rng-btn sb-p active" data-pct="0.25">50%区间</button>`
     +`<button class="rng-btn sb-p" data-pct="0.15">±15%</button>`
-    +`<button class="rng-btn sb-p active" data-pct="all">全部</button>`
+    +`<button class="rng-btn sb-p" data-pct="0.10">±10%</button>`
+    +`<button class="rng-btn sb-p" data-pct="0.05">±5%</button>`
     +`<input class="sb-lo" type="number" step="0.5" placeholder="起">`
     +`<span>~</span>`
     +`<input class="sb-hi" type="number" step="0.5" placeholder="止">`
@@ -297,7 +304,7 @@ function sliceIdx(e,sel){const out=[];e.strikes.forEach((k,z)=>{if((sel.lo==null
   for(const t of TENORS){
     oiH+=`<div class="chart-box"><h3>${LABELS[t]}</h3>${barHtml(t,'oi')}<div class="no-data-note" id="nd-oi-${t}">该日无此合约数据</div><div style="position:relative;height:280px"><canvas id="oi${t}"></canvas></div></div>`;
     flowH+=`<div class="chart-box"><h3>${LABELS[t]}</h3>${barHtml(t,'flow')}<div class="no-data-note" id="nd-flow-${t}">该日无持仓变动数据（首日无前日基准，或当日各档位均无变化）</div><div style="position:relative;height:320px"><canvas id="flow${t}"></canvas></div></div>`;
-    strikeSel[t+'|oi']={lo:null,hi:null};strikeSel[t+'|flow']={lo:null,hi:null};
+    strikeSel[t+'|oi']={mode:'preset',pct:0.25};strikeSel[t+'|flow']={mode:'preset',pct:0.25};
   }
   oiCont.innerHTML=oiH;flowCont.innerHTML=flowH;
   for(const t of TENORS){
@@ -323,7 +330,7 @@ function updateOiChart(t){
   oiState[t]=e?{fwd:e.fwd,mp:e.mp}:{fwd:null,mp:null};
   if(!e||!e.strikes||!e.strikes.length){ch.data.labels=[];ch.data.datasets[0].data=[];ch.data.datasets[1].data=[];ch.update();if(note)note.style.display='block';return}
   if(note)note.style.display='none';
-  const sel=strikeSel[t+'|oi'],ids=sliceIdx(e,sel);
+  const ids=sliceIdx(e,t+'|oi',t);
   ch.data.labels=ids.map(z=>e.strikes[z].toFixed(2).replace(/\.00$/,''));
   ch.data.datasets[0].data=ids.map(z=>e.cOi[z]||0);
   ch.data.datasets[1].data=ids.map(z=>-(e.pOi[z]||0));
@@ -332,7 +339,7 @@ function updateOiChart(t){
 function updateFlowChart(t){
   const e=hc(t,SECS.oi),ch=flowCharts[t],note=document.getElementById('nd-flow-'+t);
   if(!e||!e.strikes||!e.strikes.length){ch.data.labels=[];ch.data.datasets[0].data=[];ch.data.datasets[1].data=[];ch.update();if(note)note.style.display='block';return}
-  const sel=strikeSel[t+'|flow'],ids=sliceIdx(e,sel);
+  const ids=sliceIdx(e,t+'|flow',t);
   const labels=[],calls=[],puts=[];
   ids.forEach(z=>{const c=e.cChg[z]||0,p=e.pChg[z]||0;if(c!==0||p!==0){labels.push('$'+e.strikes[z]);calls.push(c);puts.push(p)}});
   ch.data.labels=labels;ch.data.datasets[0].data=calls;ch.data.datasets[1].data=puts;ch.update();
@@ -344,13 +351,13 @@ document.querySelectorAll('.strike-bar').forEach(bar=>{
   const loI=bar.querySelector('.sb-lo'),hiI=bar.querySelector('.sb-hi');
   bar.querySelectorAll('.sb-p').forEach(btn=>btn.addEventListener('click',()=>{
     bar.querySelectorAll('.sb-p').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-    if(btn.dataset.pct==='all'){strikeSel[key]={lo:null,hi:null};loI.value='';hiI.value=''}
-    else{const pct=parseFloat(btn.dataset.pct),e=hc(t,SECS.oi),f=e&&e.fwd!=null?e.fwd:0;
-      strikeSel[key]={lo:f*(1-pct),hi:f*(1+pct)};loI.value=(f*(1-pct)).toFixed(1);hiI.value=(f*(1+pct)).toFixed(1)}
+    const pct=parseFloat(btn.dataset.pct);
+    strikeSel[key]={mode:'preset',pct:pct};
+    const b=selBounds(key,t);loI.value=b.lo.toFixed(1);hiI.value=b.hi.toFixed(1);
     if(kind==='oi')updateOiChart(t);else updateFlowChart(t);
   }));
   const onIn=()=>{const lo=loI.value===''?null:parseFloat(loI.value),hi=hiI.value===''?null:parseFloat(hiI.value);
-    strikeSel[key]={lo:lo,hi:hi};bar.querySelectorAll('.sb-p').forEach(b=>b.classList.remove('active'));
+    strikeSel[key]={mode:'custom',lo:lo,hi:hi};bar.querySelectorAll('.sb-p').forEach(b=>b.classList.remove('active'));
     if(kind==='oi')updateOiChart(t);else updateFlowChart(t)};
   loI.addEventListener('change',onIn);hiI.addEventListener('change',onIn);
 });
