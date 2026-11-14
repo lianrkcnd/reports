@@ -145,8 +145,7 @@ const TENORS = ["2701", "2702", "2703"];
 
 const DATES = HISTORY.dates, FULLS = HISTORY.dateFull;
 const N = DATES.length, LAST = N - 1;
-// 各小节独立日期状态（默认=报告日）
-const SECS = {cards: LAST, inter: LAST, smile: LAST, greeks: LAST, oi: LAST};
+let GIDX = LAST;   // 全局日期索引（2026-11-14 起所有小节的日期筛选联动：任一处改动，全部同步）
 
 Chart.defaults.font.family='-apple-system,"Segoe UI","Microsoft YaHei",sans-serif';
 Chart.defaults.color='#6b6b6b';
@@ -185,8 +184,8 @@ function applyActive(){
   renderTrends();
 }
 
-// ── 日期筛选：年/月/日 三级联下拉（每小节独立） ──
-function makeDatePick(id, onPick){
+// ── 日期筛选：年/月/日 三级联下拉（全局联动，2026-11-14 起：任一处改动全部小节同步） ──
+function makeDatePick(id){
   const box=document.getElementById(id);
   box.innerHTML='<span>日期</span><select class="dp-y"></select><select class="dp-m"></select><select class="dp-d"></select><span class="dp-tag"></span>';
   const yS=box.querySelector('.dp-y'), mS=box.querySelector('.dp-m'), dS=box.querySelector('.dp-d'), tag=box.querySelector('.dp-tag');
@@ -198,17 +197,28 @@ function makeDatePick(id, onPick){
   function fill(sel,vals,cur){sel.innerHTML=vals.map(v=>'<option value="'+v+'"'+(v===cur?' selected':'')+'>'+v+'</option>').join('')}
   function idxOf(y,m,d){const f=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');return FULLS.indexOf(f)}
   function setSel(y,m,d){fill(yS,yrs,y);fill(mS,monthsOf(y),m);fill(dS,daysOf(y,m),d)}
-  function apply(idx){if(idx<0)return;box.classList.toggle('past',idx!==LAST);tag.textContent=(idx!==LAST?'回看 '+DATES[idx]:'');onPick(idx)}
+  function setFromIdx(idx){const p=parts[idx];if(!p)return;setSel(p.y,p.m,p.d);box.classList.toggle('past',idx!==LAST);tag.textContent=(idx!==LAST?'回看 '+DATES[idx]:'')}
+  function apply(idx){
+    if(idx<0)return;
+    setFromIdx(idx);                       // 本筛选器立即显示
+    if(idx!==GIDX)setGlobalDate(idx,box);  // 全局联动：其它筛选器与小节同步
+  }
   yS.addEventListener('change',()=>{const y=+yS.value;let m=+mS.value;const ms=monthsOf(y);if(!ms.includes(m))m=ms[ms.length-1];let d=+dS.value;const ds=daysOf(y,m);if(!ds.includes(d))d=ds[ds.length-1];setSel(y,m,d);apply(idxOf(y,m,d))});
   mS.addEventListener('change',()=>{const y=+yS.value,m=+mS.value;let d=+dS.value;const ds=daysOf(y,m);if(!ds.includes(d))d=ds[ds.length-1];setSel(y,m,d);apply(idxOf(y,m,d))});
   dS.addEventListener('change',()=>{const y=+yS.value,m=+mS.value,d=+dS.value;apply(idxOf(y,m,d))});
   const p0=parts[LAST]||parts[valid[valid.length-1]];
   setSel(p0.y,p0.m,p0.d);
+  box._setFromIdx=setFromIdx;   // 供全局联动时同步显示
+}
+function setGlobalDate(idx, srcBox){
+  GIDX=idx;
+  document.querySelectorAll('.datepick').forEach(b=>{if(b!==srcBox&&b._setFromIdx)b._setFromIdx(idx)});
+  renderCards();renderInter();renderSmile();renderGreeks();renderRR();updateAllOi();restoreStrikeBars();
 }
 
 // ── 核心指标卡 ──
 function renderCards(){
-  const i=SECS.cards;let h='';
+  const i=GIDX;let h='';
   for(const t of ACTIVE){const e=hc(t,i);if(!e||e.fwd==null)continue;
     const df=e.oldFwd!=null?e.fwd-e.oldFwd:null;
     const di=(e.atmIv!=null&&e.oldIv!=null)?e.atmIv-e.oldIv:null;
@@ -233,7 +243,7 @@ function renderCards(){
 
 // ── 1 · 同价位 OI 对比表（交集口径：前日 strikes ∩ 当日 strikes，客户端复算，与 payload 同口径） ──
 function renderInter(){
-  const i=SECS.inter;
+  const i=GIDX;
   let it='<thead><tr><th>合约</th><th>交集档数</th><th>旧 Call</th><th>新 Call</th><th>Call 变化</th><th>旧 Put</th><th>新 Put</th><th>Put 变化</th><th>P/C（旧→新）</th><th>Δ加权P/C（旧→新）</th></tr></thead><tbody>';
   for(const t of ACTIVE){
     const e=hc(t,i);
@@ -261,7 +271,7 @@ function renderInter(){
 // ── 2 · IV 微笑（按所选日期的 smile 数组 + 该日 fwd 做范围筛选） ──
 let smileRange='0.5';
 function smileDatasets(){
-  const i=SECS.smile;
+  const i=GIDX;
   return ACTIVE.map(t=>{const e=hc(t,i);const full=e?(e.smile||[]):[];
     let lo=-Infinity,hi=Infinity;
     if(smileRange!=='full'&&e&&e.fwd!=null){const pct=parseFloat(smileRange);lo=e.fwd*(1-pct);hi=e.fwd*(1+pct)}
@@ -288,7 +298,7 @@ document.querySelector('#smileRangeBtns .rng-btn[data-range="0.5"]').classList.a
 
 // ── 3 · 希腊值表 + 25Δ RR 趋势（窗口=截止所选日期的最近 30 自然日） ──
 function renderGreeks(){
-  const i=SECS.greeks;
+  const i=GIDX;
   let gt='<thead><tr><th>合约</th><th>期货</th><th>ATM IV</th><th>净Delta</th><th>净Gamma</th><th>做市商Gamma</th><th>净Vega</th><th>25Δ RR</th><th>25Δ 蝶式</th></tr></thead><tbody>';
   for(const t of ACTIVE){const e=hc(t,i);
     if(!e||e.fwd==null){gt+=`<tr><td>${LABELS[t]}</td><td colspan="8" style="color:var(--muted)">该日无此合约数据</td></tr>`;continue}
@@ -306,7 +316,7 @@ const rrChart=new Chart(document.getElementById('rrChart'),{type:'line',
   plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!=null?(c.parsed.y>0?'+':'')+c.parsed.y.toFixed(1)+' pts':'N/A'}`}}},
   scales:{y:{title:{display:true,text:'25Δ RR (pts)'},ticks:{callback:v=>(v>0?'+':'')+v},grid:{color:'#e8eaef'}},x:{grid:{display:false}}}}});
 function renderRR(){
-  const i=SECS.greeks;
+  const i=GIDX;
   rrChart.data.datasets=ACTIVE.map(rrDataset);
   const endMs=FULLS[i]?new Date(FULLS[i]).getTime():Date.now();
   const cutoffMs=endMs-30*86400000;
@@ -324,7 +334,7 @@ const oiCharts={},flowCharts={},oiState={};
 const strikeSel={};
 function selBounds(key,t){
   const s=strikeSel[key]||{mode:'preset',pct:0.25};
-  if(s.mode==='preset'){const e=hc(t,SECS.oi);const f=(e&&e.fwd!=null)?e.fwd:0;return {lo:f*(1-s.pct),hi:f*(1+s.pct)}}
+  if(s.mode==='preset'){const e=hc(t,GIDX);const f=(e&&e.fwd!=null)?e.fwd:0;return {lo:f*(1-s.pct),hi:f*(1+s.pct)}}
   return {lo:s.lo,hi:s.hi};
 }
 function sliceIdx(e,key,t){const b=selBounds(key,t);const out=[];e.strikes.forEach((k,z)=>{if((b.lo==null||k>=b.lo)&&(b.hi==null||k<=b.hi))out.push(z)});return out}
@@ -369,7 +379,7 @@ function buildOiContainersFor(list){
   wireStrikeBars();restoreStrikeBars();
 }
 function updateOiChart(t){
-  const e=hc(t,SECS.oi),ch=oiCharts[t],note=document.getElementById('nd-oi-'+t);
+  const e=hc(t,GIDX),ch=oiCharts[t],note=document.getElementById('nd-oi-'+t);
   oiState[t]=e?{fwd:e.fwd,mp:e.mp}:{fwd:null,mp:null};
   if(!e||!e.strikes||!e.strikes.length){ch.data.labels=[];ch.data.datasets[0].data=[];ch.data.datasets[1].data=[];ch.update();if(note)note.style.display='block';return}
   if(note)note.style.display='none';
@@ -380,7 +390,7 @@ function updateOiChart(t){
   ch.update();
 }
 function updateFlowChart(t){
-  const e=hc(t,SECS.oi),ch=flowCharts[t],note=document.getElementById('nd-flow-'+t);
+  const e=hc(t,GIDX),ch=flowCharts[t],note=document.getElementById('nd-flow-'+t);
   if(!e||!e.strikes||!e.strikes.length){ch.data.labels=[];ch.data.datasets[0].data=[];ch.data.datasets[1].data=[];ch.update();if(note)note.style.display='block';return}
   const ids=sliceIdx(e,t+'|flow',t);
   const labels=[],calls=[],puts=[];
@@ -478,11 +488,7 @@ document.querySelectorAll('#trendRangeBtns .rng-btn').forEach(btn=>{
 document.querySelector('#trendRangeBtns .rng-btn[data-days="30"]').classList.add('active');
 
 // ── 初始化：日期筛选绑定 + 首次渲染 ──
-makeDatePick('dp-cards', idx=>{SECS.cards=idx;renderCards()});
-makeDatePick('dp-inter', idx=>{SECS.inter=idx;renderInter()});
-makeDatePick('dp-smile', idx=>{SECS.smile=idx;renderSmile()});
-makeDatePick('dp-greeks', idx=>{SECS.greeks=idx;renderGreeks();renderRR()});
-makeDatePick('dp-oi', idx=>{SECS.oi=idx;updateAllOi();restoreStrikeBars()});
+makeDatePick('dp-cards');makeDatePick('dp-inter');makeDatePick('dp-smile');makeDatePick('dp-greeks');makeDatePick('dp-oi');
 renderContractBar();initSmileLegend();initRrLegend();
 buildOiContainersFor(ACTIVE);
 renderCards();renderInter();renderGreeks();renderRR();updateAllOi();renderTrends();
