@@ -62,10 +62,11 @@
   .tk-item:hover .tk-num{background:var(--warn);color:#fff}
   .tk-body{flex:1;min-width:0}
   .tk-body b{font-weight:600;color:#111}
-  /* ── 5 · 趋势演变（移植自工作台 Module 3，2026-11-13） ── */
-  .trend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  /* ── 5 · 趋势演变（移植自工作台 Module 3，2026-11-13；2026-11-14 起 3×3 九宫格） ── */
+  .trend-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   .trend-cell h4{font-size:12.5px;font-weight:600;margin-bottom:4px;color:#1a1a1a}
-  @media(max-width:760px){.cards{grid-template-columns:1fr}.trend-grid{grid-template-columns:1fr}}
+  @media(max-width:900px){.cards{grid-template-columns:1fr}.trend-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.trend-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
