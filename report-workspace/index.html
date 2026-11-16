@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>研报工作台 · Research Workbench</title>
+<style>
+:root{
+  --navy:#16243f; --navy2:#22345a; --orange:#e8833a; --orange-soft:#fdeadb;
+  --bg:#f5f7fa; --card:#ffffff; --text:#1a1f2e; --muted:#79839a;
+  --line:#e3e8ef; --green:#0f8a6d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- 头部 ---------- */
+header{background:var(--navy);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0}
+.logo{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.logo b{font-size:17px;letter-spacing:1px}
+.logo span{font-size:11px;color:#9fb0cf}
+#q{flex:1;min-width:200px;max-width:420px;background:var(--navy2);border:1px solid #3a4d78;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;outline:none}
+#q::placeholder{color:#8fa1c4}
+#q:focus{border-color:var(--orange)}
+.hgroup{display:flex;align-items:center;gap:6px}
+.chip{background:var(--navy2);border:1px solid #3a4d78;color:#c6d2e8;font-size:12px;padding:5px 10px;border-radius:14px;cursor:pointer;user-select:none}
+.chip:hover{color:#fff;border-color:#5a6f9e}
+.chip.active{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600}
+header input[type=date]{background:var(--navy2);border:1px solid #3a4d78;color:#e6ecf7;border-radius:8px;padding:4px 6px;font-size:12px;color-scheme:dark}
+select{background:var(--navy2);border:1px solid #3a4d78;color:#e6ecf7;border-radius:8px;padding:5px 8px;font-size:12px;outline:none;cursor:pointer}
+.hbtn{background:var(--orange);border:none;color:#fff;font-size:12px;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.hbtn:hover{filter:brightness(1.08)}
+
+/* ---------- 布局 ---------- */
+#layout{flex:1;display:flex;min-height:0}
+aside{width:248px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);overflow-y:auto;padding:10px 8px 24px}
+main{flex:1;min-width:0;overflow-y:auto;padding:14px 18px 40px}
+main.reading{overflow:hidden;padding:0;display:flex;flex-direction:column}
+
+/* ---------- 分类树 ---------- */
+.trow{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text)}
+.trow:hover{background:#eef2f8}
+.trow.active{background:var(--orange-soft);color:var(--orange);font-weight:600}
+.tcaret{width:14px;text-align:center;color:var(--muted);font-size:10px;flex-shrink:0;transition:transform .15s}
+.tcaret.open{transform:rotate(90deg)}
+.tcaret.leaf{visibility:hidden}
+.tlabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcount{font-size:11px;color:var(--muted);background:#eef2f8;border-radius:10px;padding:1px 7px;flex-shrink:0}
+.trow.active .tcount{background:var(--orange);color:#fff}
+.tchildren{margin-left:16px;border-left:1px dashed var(--line);padding-left:4px;display:none}
+.tchildren.open{display:block}
+.tall{font-weight:600;border-bottom:1px solid var(--line);margin-bottom:8px;padding-bottom:8px;border-radius:0}
+.tree-org{font-weight:600;margin-top:4px}
+
+/* ---------- 研报卡片 ---------- */
+.scopebar{display:flex;align-items:baseline;gap:10px;margin:2px 2px 12px}
+.scopebar h2{font-size:16px;color:var(--navy)}
+.scopebar .cnt{font-size:12px;color:var(--muted)}
+.rep{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer;transition:box-shadow .15s,transform .15s}
+.rep:hover{box-shadow:0 3px 12px rgba(22,36,63,.10);transform:translateY(-1px)}
+.datebox{width:52px;flex-shrink:0;text-align:center;background:var(--navy);border-radius:8px;padding:6px 2px;color:#fff}
+.datebox .dd{display:block;font-size:14px;font-weight:700;line-height:1.2}
+.datebox .yy{display:block;font-size:10px;color:#9fb0cf}
+.info{flex:1;min-width:0}
+.title{font-size:14px;font-weight:600;line-height:1.45;word-break:break-word}
+.title.isread{color:#9aa3b5;font-weight:500}
+.meta{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.orgchip{color:#fff;background:var(--oc,#666);border-radius:4px;padding:1px 8px;font-size:11px;font-weight:600;flex-shrink:0}
+.sumtag{color:var(--green);background:#e6f4ef;border:1px solid #bfe3d6;border-radius:4px;padding:0 7px;font-size:11px;font-weight:600}
+.sumtag.warn{color:#b45309;background:var(--orange-soft);border-color:#f0c9a2}
+.hitbadge{border-radius:4px;padding:0 7px;font-size:11px;font-weight:600;border:1px solid}
+.hit-meta{color:#1e60a8;border-color:#bcd4f0;background:#edf4fc}
+.hit-summary{color:var(--green);border-color:#bfe3d6;background:#e6f4ef}
+.hit-fulltext{color:var(--orange);border-color:#f5cfae;background:var(--orange-soft)}
+.snippet{margin-top:6px;font-size:12px;color:#5a6578;line-height:1.55;word-break:break-word}
+.snippet mark{background:#ffd9ad;color:#8a4a12;padding:0 2px;border-radius:3px}
+.acts{display:flex;gap:6px;flex-shrink:0}
+.acts button{border:1px solid var(--line);background:#fff;color:var(--navy);font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+.acts button:hover{border-color:var(--orange);color:var(--orange)}
+.acts button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+.acts button.primary:hover{filter:brightness(1.08);color:#fff}
+
+/* ---------- 阅读器 ---------- */
+.reader{flex:1;display:flex;flex-direction:column;min-height:0}
+.rhead{background:var(--card);border-bottom:1px solid var(--line);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.rhead .back{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;color:var(--navy)}
+.rhead .back:hover{border-color:var(--orange);color:var(--orange)}
+.crumb{flex:1;min-width:0;font-size:13px;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb .sep{color:var(--muted);margin:0 4px}
+.rtabs{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
+.rtabs button{border:none;background:#fff;color:var(--navy);font-size:12px;padding:5px 14px;cursor:pointer;font-weight:600}
+.rtabs button.active{background:var(--navy);color:#fff}
+.rhead .newwin{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--navy)}
+.rhead .newwin:hover{border-color:var(--orange);color:var(--orange)}
+.rframe{flex:1;border:none;width:100%;background:#525659}
+
+/* ---------- 空态 ---------- */
+.empty{background:var(--card);border:1px dashed #c9d3e2;border-radius:12px;padding:44px 40px;text-align:center;color:var(--muted)}
+.empty h3{color:var(--navy);font-size:17px;margin-bottom:10px}
+.empty pre{display:inline-block;text-align:left;background:#f0f4fa;border:1px solid var(--line);border-radius:10px;padding:16px 22px;margin:16px 0;font-size:12px;line-height:1.7;color:#44506a}
+.empty .hint{font-size:13px;line-height:1.8}
+.empty .hint b{color:var(--orange)}
+.tipbox{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted);font-size:13px}
+
+@media (max-width:860px){
+  aside{width:190px}
+  #q{max-width:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><b>研报工作台</b><span>Research Workbench</span></div>
+  <input id="q" type="text" placeholder="搜索标题 / PDF 全文 / AI 总结…  （Enter 立即搜，Esc 清空）">
+  <div class="hgroup" id="quickChips">
+    <span class="chip" data-v="all">全部</span>
+    <span class="chip" data-v="today">今天</span>
+    <span class="chip" data-v="7d">近7天</span>
+    <span class="chip" data-v="30d">近30天</span>
+  </div>
+  <div class="hgroup">
+    <input type="date" id="from" title="起始日期">
+    <span style="color:#8fa1c4;font-size:12px">→</span>
+    <input type="date" id="to" title="截止日期">
+  </div>
+  <select id="sort" title="排序">
+    <option value="date_desc">日期 新→旧</option>
+    <option value="date_asc">日期 旧→新</option>
+    <option value="title">标题 A→Z</option>
+  </select>
+  <button class="hbtn" id="refreshBtn">刷新</button>
+</header>
+
+<div id="layout">
+  <aside id="tree"></aside>
+  <main id="main"></main>
+</div>
+
+<script>window.__LIB_DATA__ = {"total":22,"reports":[{"rel":"summaries/Energy Aspects/Weekly Updates/2026-11-13 Winter diving season.html","name":"2026-11-13 Winter diving season.html","title":"2026-11-13 Winter diving season","date":"2026-11-13","org":"Energy Aspects","category":"Weekly Updates","size":347204,"mtime":1794794638,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/GS/Commodity Views/2026-11-12 2027 Outlook Adapting to Rough Waters.html","name":"2026-11-12 2027 Outlook Adapting to Rough Waters.html","title":"2026-11-12 2027 Outlook Adapting to Rough Waters","date":"2026-11-12","org":"GS","category":"Commodity Views","size":3878550,"mtime":1794806903,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/原油/2026-11-09 原油日报总结.html","name":"2026-11-09 原油日报总结.html","title":"原油日报总结","date":"2026-11-09","org":"Platts","category":"Daily/原油","size":726280,"mtime":1794746835,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/原油/2026-11-10 原油日报总结.html","name":"2026-11-10 原油日报总结.html","title":"原油日报总结","date":"2026-11-10","org":"Platts","category":"Daily/原油","size":655112,"mtime":1794744055,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/原油/2026-11-11 原油日报总结.html","name":"2026-11-11 原油日报总结.html","title":"原油日报总结","date":"2026-11-11","org":"Platts","category":"Daily/原油","size":660257,"mtime":1794745009,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/原油/2026-11-12 原油日报总结.html","name":"2026-11-12 原油日报总结.html","title":"原油日报总结","date":"2026-11-12","org":"Platts","category":"Daily/原油","size":550553,"mtime":1794745462,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/原油/2026-11-13 原油日报总结.html","name":"2026-11-13 原油日报总结.html","title":"原油日报总结","date":"2026-11-13","org":"Platts","category":"Daily/原油","size":814746,"mtime":1794630489,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/汽油柴油/2026-11-09 汽柴油日报总结.html","name":"2026-11-09 汽柴油日报总结.html","title":"汽柴油日报总结","date":"2026-11-09","org":"Platts","category":"Daily/汽油柴油","size":645076,"mtime":1794746995,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/汽油柴油/2026-11-10 汽柴油日报总结.html","name":"2026-11-10 汽柴油日报总结.html","title":"汽柴油日报总结","date":"2026-11-10","org":"Platts","category":"Daily/汽油柴油","size":317875,"mtime":1794744298,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/汽油柴油/2026-11-11 汽柴油日报总结.html","name":"2026-11-11 汽柴油日报总结.html","title":"汽柴油日报总结","date":"2026-11-11","org":"Platts","category":"Daily/汽油柴油","size":769593,"mtime":1794744864,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/汽油柴油/2026-11-12 汽柴油日报总结.html","name":"2026-11-12 汽柴油日报总结.html","title":"汽柴油日报总结","date":"2026-11-12","org":"Platts","category":"Daily/汽油柴油","size":665268,"mtime":1794746886,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/汽油柴油/2026-11-13 汽柴油日报总结.html","name":"2026-11-13 汽柴油日报总结.html","title":"汽柴油日报总结","date":"2026-11-13","org":"Platts","category":"Daily/汽油柴油","size":539823,"mtime":1794630489,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/燃料油其它/2026-11-09 燃料油及其它日报总结.html","name":"2026-11-09 燃料油及其它日报总结.html","title":"燃料油及其它日报总结","date":"2026-11-09","org":"Platts","category":"Daily/燃料油其它","size":552965,"mtime":1794746813,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/燃料油其它/2026-11-10 燃料油及其它日报总结.html","name":"2026-11-10 燃料油及其它日报总结.html","title":"燃料油及其它日报总结","date":"2026-11-10","org":"Platts","category":"Daily/燃料油其它","size":564796,"mtime":1794743742,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/燃料油其它/2026-11-11 燃料油及其它日报总结.html","name":"2026-11-11 燃料油及其它日报总结.html","title":"燃料油及其它日报总结","date":"2026-11-11","org":"Platts","category":"Daily/燃料油其它","size":495327,"mtime":1794744713,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/燃料油其它/2026-11-12 燃料油及其它日报总结.html","name":"2026-11-12 燃料油及其它日报总结.html","title":"燃料油及其它日报总结","date":"2026-11-12","org":"Platts","category":"Daily/燃料油其它","size":566924,"mtime":1794746276,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/燃料油其它/2026-11-13 燃料油及其它日报总结.html","name":"2026-11-13 燃料油及其它日报总结.html","title":"燃料油及其它日报总结","date":"2026-11-13","org":"Platts","category":"Daily/燃料油其它","size":137537,"mtime":1794630489,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/石脑油/2026-11-09 石脑油日报总结.html","name":"2026-11-09 石脑油日报总结.html","title":"石脑油日报总结","date":"2026-11-09","org":"Platts","category":"Daily/石脑油","size":96294,"mtime":1794746424,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/石脑油/2026-11-10 石脑油日报总结.html","name":"2026-11-10 石脑油日报总结.html","title":"石脑油日报总结","date":"2026-11-10","org":"Platts","category":"Daily/石脑油","size":94264,"mtime":1794743897,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/石脑油/2026-11-11 石脑油日报总结.html","name":"2026-11-11 石脑油日报总结.html","title":"石脑油日报总结","date":"2026-11-11","org":"Platts","category":"Daily/石脑油","size":85840,"mtime":1794744732,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/石脑油/2026-11-12 石脑油日报总结.html","name":"2026-11-12 石脑油日报总结.html","title":"石脑油日报总结","date":"2026-11-12","org":"Platts","category":"Daily/石脑油","size":149813,"mtime":1794745571,"hasSummary":true,"pdfMissing":true},{"rel":"summaries/Platts/Daily/石脑油/2026-11-13 石脑油日报总结.html","name":"2026-11-13 石脑油日报总结.html","title":"石脑油日报总结","date":"2026-11-13","org":"Platts","category":"Daily/石脑油","size":54795,"mtime":1794630489,"hasSummary":true,"pdfMissing":true}],"tree":[{"label":"Platts","org":"Platts","cat":"","count":20,"children":[{"label":"Daily","org":"Platts","cat":"Daily","count":20,"children":[{"label":"原油","org":"Platts","cat":"Daily/原油","count":5,"children":[]},{"label":"汽油柴油","org":"Platts","cat":"Daily/汽油柴油","count":5,"children":[]},{"label":"石脑油","org":"Platts","cat":"Daily/石脑油","count":5,"children":[]},{"label":"燃料油其它","org":"Platts","cat":"Daily/燃料油其它","count":5,"children":[]}]},{"label":"Weekly","org":"Platts","cat":"Weekly","count":0,"children":[]},{"label":"Monthly","org":"Platts","cat":"Monthly","count":0,"children":[]}]},{"label":"FGE","org":"FGE","cat":"","count":0,"children":[]},{"label":"Energy Aspects","org":"Energy Aspects","cat":"","count":1,"children":[{"label":"Insights","org":"Energy Aspects","cat":"Insights","count":0,"children":[{"label":"Crude Oil","org":"Energy Aspects","cat":"Insights/Crude Oil","count":0,"children":[]},{"label":"Dirty Freight","org":"Energy Aspects","cat":"Insights/Dirty Freight","count":0,"children":[]}]},{"label":"Weekly Updates","org":"Energy Aspects","cat":"Weekly Updates","count":1,"children":[{"label":"Perspectives","org":"Energy Aspects","cat":"Weekly Updates/Perspectives","count":0,"children":[]},{"label":"US Oil Weekly","org":"Energy Aspects","cat":"Weekly Updates/US Oil Weekly","count":0,"children":[]},{"label":"Weekly Arbs Update","org":"Energy Aspects","cat":"Weekly Updates/Weekly Arbs Update","count":0,"children":[]},{"label":"Dirty Freight","org":"Energy Aspects","cat":"Weekly Updates/Dirty Freight","count":0,"children":[]}]},{"label":"Monthly Outlooks","org":"Energy Aspects","cat":"Monthly Outlooks","count":0,"children":[{"label":"Canada","org":"Energy Aspects","cat":"Monthly Outlooks/Canada","count":0,"children":[]},{"label":"China","org":"Energy Aspects","cat":"Monthly Outlooks/China","count":0,"children":[]},{"label":"Geopolitics","org":"Energy Aspects","cat":"Monthly Outlooks/Geopolitics","count":0,"children":[]},{"label":"Fundamentals","org":"Energy Aspects","cat":"Monthly Outlooks/Fundamentals","count":0,"children":[]},{"label":"North America","org":"Energy Aspects","cat":"Monthly Outlooks/North America","count":0,"children":[]},{"label":"Sour Crude","org":"Energy Aspects","cat":"Monthly Outlooks/Sour Crude","count":0,"children":[]},{"label":"Sweet Crude","org":"Energy Aspects","cat":"Monthly Outlooks/Sweet Crude","count":0,"children":[]}]}]},{"label":"Kpler","org":"Kpler","cat":"","count":0,"children":[{"label":"Insight","org":"Kpler","cat":"Insight","count":0,"children":[]},{"label":"Others","org":"Kpler","cat":"Others","count":0,"children":[{"label":"原油","org":"Kpler","cat":"Others/原油","count":0,"children":[]},{"label":"成品油","org":"Kpler","cat":"Others/成品油","count":0,"children":[]},{"label":"燃料油","org":"Kpler","cat":"Others/燃料油","count":0,"children":[]},{"label":"其它","org":"Kpler","cat":"Others/其它","count":0,"children":[]}]}]},{"label":"JPM","org":"JPM","cat":"","count":0,"children":[]},{"label":"Morgan Stanley","org":"Morgan Stanley","cat":"","count":0,"children":[]},{"label":"GS","org":"GS","cat":"","count":1,"children":[{"label":"Commodity Views","org":"GS","cat":"Commodity Views","count":1,"children":[]}]}]};</script>
+<script>
+'use strict';
+/* ============ 状态 ============ */
+const state = {
+  org:null, cat:null,        // 树筛选（cat 为分类全路径，'' = 整个机构）
+  q:'',                      // 搜索词（防抖后生效）
+  quick:'all',               // all | today | 7d | 30d
+  from:'', to:'',
+  sort:'date_desc',
+  view:'list',               // list | reader
+  reading:null,              // {report, tab:'pdf'|'summary'}
+};
+let LIB = window.__LIB_DATA__ || null;   // 静态版：数据内嵌
+let searchSeq = 0;           // 防止乱序返回
+const ORG_COLORS = {'Platts':'#e8833a','FGE':'#0f8a6d','Energy Aspects':'#1e60a8','Kpler':'#7b46b4','JPM':'#b0455c','Morgan Stanley':'#1f3c63','GS':'#2e7d4f'};
+const FALLBACK_COLORS = ['#3b6ea5','#a56b3b','#4f7d3b','#8a3b6e','#3b7d8a'];
+const LS_EXPAND='wb_rpt_expanded', LS_READ='wb_rpt_read';
+
+/* ============ 工具 ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const encPath = rel => rel.split('/').map(encodeURIComponent).join('/');
+function orgColor(o){ if(ORG_COLORS[o]) return ORG_COLORS[o];
+  let h=0; for(const c of o) h=(h*31+c.charCodeAt(0))>>>0; return FALLBACK_COLORS[h%FALLBACK_COLORS.length]; }
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function daysAgoISO(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtSize(n){ if(n>=1048576) return (n/1048576).toFixed(1)+' MB'; return Math.max(1,Math.round(n/1024))+' KB';}
+function getRead(){ try{return JSON.parse(localStorage.getItem(LS_READ)||'{}');}catch(e){return {};} }
+function markRead(rel){ const r=getRead(); if(!r[rel]){ r[rel]=1; localStorage.setItem(LS_READ, JSON.stringify(r)); } }
+function getExpanded(){ try{return new Set(JSON.parse(localStorage.getItem(LS_EXPAND)||'[]'));}catch(e){return new Set();} }
+function saveExpanded(set){ localStorage.setItem(LS_EXPAND, JSON.stringify([...set])); }
+function dateLabel(iso){ const [y,m,d]=iso.split('-'); return {dd:m+'-'+d, yy:y}; }
+function catLabel(c){ return c ? c.replace(/\//g,' / ') : ''; }
+function hl(text, q){
+  const t = esc(text);
+  if(!q) return t;
+  const rq = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  try{ return t.replace(new RegExp('('+esc(rq)+')','gi'), '<mark>$1</mark>'); }catch(e){ return t; }
+}
+
+/* ============ 数据 ============ */
+async function fetchLibrary(){
+  if(LIB){ renderTree(); if(state.view==='list') renderList(); return; }
+  const r = await fetch('/api/library');
+  LIB = await r.json();
+  renderTree();
+  if(state.view==='list') renderList();
+}
+async function fetchSearch(){
+  const seq = ++searchSeq;
+  const q = (state.q||'').trim().toLowerCase();
+  let list = LIB.reports.filter(r=>{
+    if(state.org && r.org!==state.org) return false;
+    if(state.from && r.date<state.from) return false;
+    if(state.to && r.date>state.to) return false;
+    if(q && ((r.title||'')+' '+(r.name||'')+' '+(r.category||'')+' '+(r.org||'')+' '+(r.date||'')).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  if(seq!==searchSeq) return null;  // 过期结果丢弃
+  return {results:list, q:state.q};
+}
+
+/* ============ 分类树 ============ */
+function nodeRow(node, isOrg){
+  const key = node.org+'|'+node.cat;
+  const hasKids = node.children && node.children.length>0;
+  const exp = getExpanded();
+  const open = isOrg ? exp.has(key) : true;
+  const active = (state.org===node.org && (state.cat||'')===node.cat);
+  return `<div class="trow ${active?'active':''} ${isOrg?'tree-org':''}" data-key="${esc(key)}" data-org="${esc(node.org)}" data-cat="${esc(node.cat)}" ${hasKids?'data-has="1"':''}>
+    <span class="tcaret ${hasKids?(open?'open':''):'leaf'}">${hasKids?'▸':''}</span>
+    <span class="tlabel">${esc(node.label)}</span>
+    <span class="tcount">${node.count||''}</span>
+  </div>` + (hasKids?`<div class="tchildren ${open?'open':''}" data-kids="${esc(key)}">${node.children.map(c=>nodeHTML(c,false)).join('')}</div>`:'');
+}
+function nodeHTML(node, isOrg){ return nodeRow(node, isOrg); }
+function renderTree(){
+  const exp = getExpanded();
+  let html = `<div class="trow tall ${(state.org===null && state.cat===null)?'active':''}" data-key="|" data-org="" data-cat="">
+      <span class="tcaret leaf"></span><span class="tlabel">全部研报</span><span class="tcount">${LIB?LIB.total:0}</span></div>`;
+  if(LIB) html += LIB.tree.map(o=>nodeHTML(o,true)).join('');
+  $('#tree').innerHTML = html;
+  $('#tree').querySelectorAll('.trow').forEach(row=>{
+    row.addEventListener('click', e=>{
+      const has = row.dataset.has==='1';
+      const isCaret = e.target.classList.contains('tcaret');
+      if(has && isCaret){
+        const key=row.dataset.key, set=getExpanded();
+        set.has(key)?set.delete(key):set.add(key);
+        saveExpanded(set); renderTree(); return;
+      }
+      if(has && row.classList.contains('tree-org') && !row.classList.contains('active')){
+        // 点击机构行：先当作筛选（也展开）
+        const set=getExpanded(); set.add(row.dataset.key); saveExpanded(set);
+      }
+      state.org = row.dataset.org || null;
+      state.cat = row.dataset.cat || null;
+      if(state.org===null){state.cat=null;}
+      state.q=''; $('#q').value='';
+      renderTree(); renderList();
+    });
+  });
+}
+
+/* ============ 筛选 ============ */
+function inDateRange(it){
+  if(state.from && it.date < state.from) return false;
+  if(state.to && it.date > state.to) return false;
+  const today = todayISO();
+  if(state.quick==='today' && it.date!==today) return false;
+  if(state.quick==='7d' && it.date<daysAgoISO(6)) return false;
+  if(state.quick==='30d' && it.date<daysAgoISO(29)) return false;
+  return true;
+}
+function currentReports(){
+  let list = (LIB?LIB.reports:[]).slice();
+  if(state.org) list = list.filter(r=>r.org===state.org);
+  if(state.cat) list = list.filter(r=> r.category===state.cat || r.category.startsWith(state.cat+'/'));
+  list = list.filter(inDateRange);
+  if(state.sort==='date_desc') list.sort((a,b)=> b.date.localeCompare(a.date) || b.mtime-a.mtime);
+  else if(state.sort==='date_asc') list.sort((a,b)=> a.date.localeCompare(b.date) || a.mtime-b.mtime);
+  else list.sort((a,b)=> a.title.localeCompare(b.title,'zh'));
+  return list;
+}
+function scopeTitle(){
+  if(!state.org) return '全部研报';
+  if(!state.cat) return state.org;
+  return state.org + ' · ' + catLabel(state.cat);
+}
+
+/* ============ 列表 ============ */
+function cardHTML(it, q){
+  const read = getRead()[it.rel] ? 'isread' : '';
+  const dl = dateLabel(it.date);
+  const hit = it.matchIn ? `<span class="hitbadge hit-${it.matchIn}">${it.matchIn==='meta'?'标题/分类':it.matchIn==='summary'?'总结命中':'全文命中'}</span>` : '';
+  const snippet = (it.matchIn && it.matchIn!=='meta' && it.snippet) ? `<div class="snippet">${hl(it.snippet, q)}</div>` : '';
+  return `<div class="rep" data-rel="${esc(it.rel)}" data-sum="${it.hasSummary?1:0}">
+    <div class="datebox"><span class="dd">${dl.dd}</span><span class="yy">${dl.yy}</span></div>
+    <div class="info">
+      <div class="title ${read}">${esc(it.title)}</div>
+      <div class="meta">
+        <span class="orgchip" style="--oc:${orgColor(it.org)}">${esc(it.org)}</span>
+        ${it.category?`<span>${esc(catLabel(it.category))}</span>`:''}
+        ${hit}
+        ${it.hasSummary?(it.pdfMissing?'<span class="sumtag warn">仅总结 · 无PDF</span>':'<span class="sumtag">有总结</span>'):''}
+        <span>${fmtSize(it.size)}</span>
+      </div>
+      ${snippet}
+    </div>
+    <div class="acts">
+      ${it.pdfMissing
+        ? `<button data-act="summary" class="primary">总结</button>`
+        : `${it.hasSummary?`<button data-act="summary">总结</button>`:''}<button data-act="read" class="primary">阅读</button>`}
+    </div>
+  </div>`;
+}
+
+async function renderList(){
+  const main = $('#main');
+  main.classList.remove('reading');
+  state.view='list'; state.reading=null;
+  if(!LIB){ main.innerHTML='<div class="tipbox">加载中…</div>'; return; }
+
+  /* 空架子欢迎态 */
+  if(LIB.total===0 && !state.q){
+    main.innerHTML = `<div class="empty">
+      <h3>工作台已就绪，还没有研报</h3>
+      <div class="hint">把研报 PDF 放入下方对应文件夹，点右上角<b>「刷新」</b>即可看到。<br>
+      建议文件名带上日期，如 <b>2026-11-14 标题.pdf</b>（工作台按它识别日期）。</div>
+      <pre>研报工作台/
+├─ reports/
+│  ├─ Platts/
+│  │  ├─ Daily/原油 · Daily/汽油柴油 · Daily/石脑油 · Daily/燃料油其它
+│  │  ├─ Weekly/      └─ Monthly/
+│  ├─ FGE/   ├─ Energy Aspects/   ├─ Kpler/
+│  ├─ JPM/   └─ GS/
+└─ summaries/    ← AI 精读总结页（与 reports 同名镜像，自动关联）</pre>
+      <div class="hint">也可以把 PDF 直接发给 AI：让 AI <b>归档 + 生成中文精读总结</b>，<br>总结页会自动挂到对应研报的「总结」入口；只收总结、不归档原文也行<br>（总结页单独放进 summaries/ 对应小节，卡片会标「仅总结 · 无PDF」）。详见 README.md。</div>
+    </div>`;
+    return;
+  }
+
+  /* 搜索模式 */
+  if(state.q.trim()){
+    main.innerHTML = '<div class="tipbox">搜索中…</div>';
+    const data = await fetchSearch();
+    if(data===null) return;  // 已被更新的请求取代
+    const rows = data.results.map(it=>cardHTML(it, data.q)).join('');
+    main.innerHTML = `<div class="scopebar"><h2>搜索「${esc(data.q)}」</h2><span class="cnt">${data.count} 条命中</span></div>` +
+      (rows || '<div class="tipbox">没有匹配结果。搜索范围：标题 / 分类 / PDF 全文 / AI 总结页。</div>');
+    bindCards(main);
+    return;
+  }
+
+  /* 浏览模式 */
+  const list = currentReports();
+  const rows = list.map(it=>cardHTML(it,'')).join('');
+  main.innerHTML = `<div class="scopebar"><h2>${esc(scopeTitle())}</h2><span class="cnt">${list.length} 份</span></div>` +
+    (rows || `<div class="tipbox">${esc(scopeTitle())} 暂无研报。把 PDF 放入对应文件夹后点「刷新」。</div>`);
+  bindCards(main);
+}
+
+function bindCards(root){
+  root.querySelectorAll('.rep').forEach(card=>{
+    const rel = card.dataset.rel;
+    const report = (LIB.reports.find(r=>r.rel===rel)) || null;
+    card.addEventListener('click', e=>{
+      const btn = e.target.closest('button');
+      if(btn){
+        e.stopPropagation();
+        if(btn.dataset.act==='summary') openReader(report||{rel:rel, hasSummary:true}, 'summary');
+        else openReader(report||{rel:rel}, 'pdf');
+        return;
+      }
+      if(report) openReader(report,'pdf');
+    });
+  });
+}
+
+/* ============ 阅读器 ============ */
+function fileURL(rel){ return encPath(rel); }
+function openReader(report, tab){
+  if(!report) return;
+  if(report.pdfMissing) tab='summary';          // 仅总结条目：直接打开总结页
+  if(tab!=='summary' && !report.hasSummary) tab='pdf';
+  if(tab!=='summary') tab='pdf';
+  state.view='reader'; state.reading={report, tab};
+  markRead(report.rel);
+  const main=$('#main');
+  main.classList.add('reading');
+  const crumb = [report.org, catLabel(report.category), report.title].filter(Boolean)
+    .map(x=>`<span>${esc(x)}</span>`).join('<span class="sep">/</span>');
+  const tabs = (report.hasSummary && !report.pdfMissing) ? `
+      <div class="rtabs">
+        <button data-tab="pdf" class="${tab==='pdf'?'active':''}">原文 PDF</button>
+        <button data-tab="summary" class="${tab==='summary'?'active':''}">AI 总结</button>
+      </div>` : '';
+  const src = tab==='summary'
+    ? fileURL(report.rel.replace(/^reports\//,'summaries/').replace(/\.pdf$/,'.html'))
+    : fileURL(report.rel);
+  main.innerHTML = `<div class="reader">
+    <div class="rhead">
+      <button class="back">← 返回列表</button>
+      <div class="crumb">${crumb}</div>
+      ${tabs}
+      <button class="newwin">新窗口打开</button>
+    </div>
+    <iframe class="rframe" src="${esc(src)}"></iframe>
+  </div>`;
+  main.querySelector('.back').addEventListener('click', renderList);
+  const nw = main.querySelector('.newwin');
+  nw.addEventListener('click', ()=> window.open(src, '_blank'));
+  main.querySelectorAll('.rtabs button').forEach(b=>{
+    b.addEventListener('click', ()=> openReader(report, b.dataset.tab));
+  });
+}
+
+/* ============ 顶栏控件 ============ */
+let qTimer=null;
+$('#q').addEventListener('input', ()=>{
+  clearTimeout(qTimer);
+  qTimer=setTimeout(()=>{ state.q=$('#q').value; renderList(); }, 300);
+});
+$('#q').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ clearTimeout(qTimer); state.q=$('#q').value; renderList(); }
+  if(e.key==='Escape'){ $('#q').value=''; state.q=''; renderList(); }
+});
+$('#quickChips').querySelectorAll('.chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    state.quick=ch.dataset.v;
+    state.from=''; state.to=''; $('#from').value=''; $('#to').value='';
+    $('#quickChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c===ch));
+    renderList();
+  });
+});
+$('#from').addEventListener('change', ()=>{ state.from=$('#from').value; if(state.from){state.quick='';document.querySelectorAll('#quickChips .chip').forEach(c=>c.classList.remove('active'));} renderList(); });
+$('#to').addEventListener('change', ()=>{ state.to=$('#to').value; if(state.to){state.quick='';document.querySelectorAll('#quickChips .chip').forEach(c=>c.classList.remove('active'));} renderList(); });
+$('#sort').addEventListener('change', ()=>{ state.sort=$('#sort').value; renderList(); });
+$('#refreshBtn').addEventListener('click', fetchLibrary);
+
+/* 回到页面时自动刷新（放完新文件切回来就能看到），5 秒节流 */
+let lastFetch=0;
+function autoRefresh(){
+  const now=Date.now();
+  if(now-lastFetch<5000) return;
+  lastFetch=now;
+  fetchLibrary();
+}
+window.addEventListener('focus', ()=>{ if(state.view==='list') autoRefresh(); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && state.view==='list') autoRefresh(); });
+
+/* ============ 启动 ============ */
+$('#quickChips .chip').forEach(c=>{ if(c.dataset.v==='all') c.classList.add('active'); });
+fetchLibrary().catch(()=>{});
+/* 首取失败（服务未就绪等）时自动重试几次，仍失败给出重试按钮而非白屏 */
+(function retryInit(n){
+  if(LIB) return;
+  if(n<=0){
+    if(state.view==='list' && !document.querySelector('.rep'))
+      $('#main').innerHTML = '<div class="tipbox">加载失败：无法连接工作台服务。请确认服务已启动，然后 <button class="hbtn" onclick="fetchLibrary().then(()=>{ if(LIB) renderTree(), renderList(); }).catch(()=>{})">重试</button> 或点右上角「刷新」。</div>';
+    return;
+  }
+  setTimeout(()=>{ fetchLibrary().catch(()=>{}); retryInit(n-1); }, 1200);
+})(5);
+</script>
+</body>
+</html>
