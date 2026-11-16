@@ -102,6 +102,13 @@ main.reading{overflow:hidden;padding:0;display:flex;flex-direction:column}
 .empty .hint b{color:var(--orange)}
 .tipbox{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted);font-size:13px}
 
+/* 最新更新横幅 */
+.latest{background:#101d36;color:#dbe4f5;padding:9px 16px;display:flex;align-items:center;gap:9px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #26365a;scrollbar-width:thin}
+.latest .lt{flex-shrink:0;font-size:12px;letter-spacing:.08em;color:#e8a869;font-weight:700}
+.latest .lchip{flex-shrink:0;background:#22334f;border:1px solid #3a4f77;color:#ffd9b3;border-radius:999px;padding:5px 14px;font-size:13px;cursor:pointer}
+.latest .lchip:hover{background:#2d4066;border-color:#5b74a8}
+.latest .lchip b{color:#fff;font-weight:600}
+
 @media (max-width:860px){
   aside{width:190px}
   #q{max-width:none}
@@ -130,6 +137,8 @@ main.reading{overflow:hidden;padding:0;display:flex;flex-direction:column}
   </select>
   <button class="hbtn" id="refreshBtn">刷新</button>
 </header>
+
+<div class="latest" id="latestBar" hidden></div>
 
 <div id="layout">
   <aside id="tree"></aside>
@@ -179,11 +188,25 @@ function hl(text, q){
 
 /* ============ 数据 ============ */
 async function fetchLibrary(){
-  if(LIB){ renderTree(); if(state.view==='list') renderList(); return; }
+  if(LIB){ renderLatest(); renderTree(); if(state.view==='list') renderList(); return; }
   const r = await fetch('/api/library');
   LIB = await r.json();
+  renderLatest();
   renderTree();
   if(state.view==='list') renderList();
+}
+/* ============ 最新更新横幅 ============ */
+function renderLatest(){
+  const bar = document.getElementById('latestBar');
+  if(!bar) return;
+  if(!LIB || !LIB.reports.length){ bar.hidden = true; return; }
+  const maxDate = LIB.reports.reduce((m,r)=> (r.date && r.date>m) ? r.date : m, '');
+  if(!maxDate){ bar.hidden = true; return; }
+  const items = LIB.reports.filter(r=>r.date===maxDate)
+    .sort((a,b)=>(a.org+a.category).localeCompare(b.org+b.category));
+  bar.hidden = false;
+  bar.innerHTML = `<span class="lt">最新更新 ${dateLabel(maxDate).dd}（${items.length} 份）</span>` +
+    items.map(r=>`<span class="lchip" data-rel="${esc(r.rel)}">${esc(r.title||r.name)}<b> · ${esc(r.org||'')}</b></span>`).join('');
 }
 async function fetchSearch(){
   const seq = ++searchSeq;
@@ -415,6 +438,12 @@ $('#quickChips').querySelectorAll('.chip').forEach(ch=>{
 $('#from').addEventListener('change', ()=>{ state.from=$('#from').value; if(state.from){state.quick='';document.querySelectorAll('#quickChips .chip').forEach(c=>c.classList.remove('active'));} renderList(); });
 $('#to').addEventListener('change', ()=>{ state.to=$('#to').value; if(state.to){state.quick='';document.querySelectorAll('#quickChips .chip').forEach(c=>c.classList.remove('active'));} renderList(); });
 $('#sort').addEventListener('change', ()=>{ state.sort=$('#sort').value; renderList(); });
+$('#latestBar').addEventListener('click', e=>{
+  const chip = e.target.closest('.lchip'); if(!chip) return;
+  const rel = chip.dataset.rel;
+  const report = LIB.reports.find(r=>r.rel===rel); if(!report) return;
+  openReader(report, 'summary');
+});
 $('#refreshBtn').addEventListener('click', fetchLibrary);
 
 /* 回到页面时自动刷新（放完新文件切回来就能看到），5 秒节流 */
