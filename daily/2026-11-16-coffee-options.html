@@ -66,7 +66,7 @@ footer{margin-top:22px;color:var(--muted);font-size:11.5px;text-align:center}
 <div class="cards" id="cards"></div>
 
 <div class="sec-head"><h2>1 · 隐含波动率微笑（OTM 结构）</h2>
-<div class="range-bar">显示范围：<button class="srange-btn" data-r="10">±10%</button><button class="srange-btn" data-r="20">±20%</button><button class="srange-btn" data-r="50">±50%</button><button class="srange-btn" data-r="all">全部</button></div>
+<div class="range-bar">显示范围：<button class="srange-btn" data-r="10">±10%</button><button class="srange-btn" data-r="20">±20%</button><button class="srange-btn" data-r="50">±50%</button><button class="srange-btn" data-r="all">全部</button></div></div>
 <div class="chart-box"><div style="position:relative;height:340px"><canvas id="smileChart"></canvas></div></div>
 
 <div class="sec-head"><h2>2 · 希腊值分析（Delta / Gamma / Vega）</h2></div>
@@ -130,15 +130,19 @@ function fillFilter(df){
 function rebuildMD(){
   const {y,m}=selEls();
   const ms=[...new Set(DATES.filter(x=>x.slice(0,4)===y.value).map(x=>x.slice(5,7)))];
-  if(!ms.includes(m.value))m.value=ms[ms.length-1];
-  m.innerHTML=ms.map(v=>`<option ${v===m.value?'selected':''}>${v}</option>`).join('');
+  if(ms.length===0)return;
+  const mc=ms.includes(m.value)?m.value:ms[ms.length-1];
+  m.innerHTML=ms.map(v=>`<option ${v===mc?'selected':''}>${v}</option>`).join('');
+  m.value=mc;  // innerHTML 重建后再赋值,确保选中态生效
   rebuildD();
 }
 function rebuildD(){
   const {y,m,d}=selEls();
   const ds=DATES.filter(x=>x.slice(0,7)===y.value+'-'+m.value).map(x=>x.slice(8,10));
-  if(!ds.includes(d.value))d.value=ds[ds.length-1];
-  d.innerHTML=ds.map(v=>`<option ${v===d.value?'selected':''}>${v}</option>`).join('');
+  if(ds.length===0)return;
+  const dc=ds.includes(d.value)?d.value:ds[ds.length-1];
+  d.innerHTML=ds.map(v=>`<option ${v===dc?'selected':''}>${v}</option>`).join('');
+  d.value=dc;  // 同上;空 select 阶段 d.value 赋值是 no-op,不能依赖
 }
 function onFilterChange(){
   const {y,m,d}=selEls();
