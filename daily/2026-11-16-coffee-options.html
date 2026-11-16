@@ -60,25 +60,22 @@ th{background:#fafaf8;color:var(--muted);font-weight:500}
 footer{margin-top:22px;color:var(--muted);font-size:11.5px;text-align:center}
 </style></head><body><div class="wrap">
 <h1>KC 咖啡期权分析报告（含希腊值）</h1>
-<div class="sub">报告生成 11/16 · ICE KC 咖啡期权 · 合约乘数 37500 磅 · 价格单位 美分/磅 · 红涨绿跌 · 50% 范围（ATM ±25%）· 序列期权期货价统一为主月合约价 · 各节可按 年/月/日 回看历史</div>
+<div class="sub">报告生成 11/16 · ICE KC 咖啡期权 · 合约乘数 37500 磅 · 价格单位 美分/磅 · 红涨绿跌 · 50% 范围（ATM ±25%）· 序列期权期货价统一为主月合约价 · 顶部日期筛选联动全节回看历史</div>
 
 <div class="sec-head"><h2>核心指标卡</h2><div class="sec-filter" id="f_cards"></div></div>
 <div class="cards" id="cards"></div>
 
 <div class="sec-head"><h2>1 · 隐含波动率微笑（OTM 结构）</h2>
-<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
 <div class="range-bar">显示范围：<button class="srange-btn" data-r="10">±10%</button><button class="srange-btn" data-r="20">±20%</button><button class="srange-btn" data-r="50">±50%</button><button class="srange-btn" data-r="all">全部</button></div>
-<div class="sec-filter" id="f_smile"></div>
-</div></div>
 <div class="chart-box"><div style="position:relative;height:340px"><canvas id="smileChart"></canvas></div></div>
 
-<div class="sec-head"><h2>2 · 希腊值分析（Delta / Gamma / Vega）</h2><div class="sec-filter" id="f_greeks"></div></div>
+<div class="sec-head"><h2>2 · 希腊值分析（Delta / Gamma / Vega）</h2></div>
 <div id="greeks"></div>
 
-<div class="sec-head"><h2>3 · 持仓分布（OI 墙 · 全行权价 · 红=看涨 绿=看跌）</h2><div class="sec-filter" id="f_oi"></div></div>
+<div class="sec-head"><h2>3 · 持仓分布（OI 墙 · 全行权价 · 红=看涨 绿=看跌）</h2></div>
 <div class="oil-grid" id="oiwalls"></div>
 
-<div class="sec-head"><h2>4 · 同价位 OI 对比（交集口径，较上一交易日）</h2><div class="sec-filter" id="f_inter"></div></div>
+<div class="sec-head"><h2>4 · 同价位 OI 对比（交集口径，较上一交易日）</h2></div>
 <div id="inter"></div>
 
 <div class="sec-head"><h2>5 · 趋势演变（趋势跟踪 · 逐日累积）</h2>
@@ -86,7 +83,7 @@ footer{margin-top:22px;color:var(--muted);font-size:11.5px;text-align:center}
 <div class="sub" style="margin-bottom:10px">9 项核心指标随交易日累积：期货价格、P/C 比率、ATM IV、Δ加权P/C、25Δ RR、Max Pain、净 Delta、净 Gamma、净 Vega。预设按钮或右侧自定义起止日期，仅重绘趋势图。</div>
 <div class="trend-grid"><div class="chart-box"><h3>期货价格 走势</h3><div style="position:relative;height:230px"><canvas id="trend_fwd"></canvas></div></div><div class="chart-box"><h3>P/C 比率 走势</h3><div style="position:relative;height:230px"><canvas id="trend_pc"></canvas></div></div><div class="chart-box"><h3>ATM IV (%) 走势</h3><div style="position:relative;height:230px"><canvas id="trend_atm_iv"></canvas></div></div><div class="chart-box"><h3>Δ加权P/C 走势</h3><div style="position:relative;height:230px"><canvas id="trend_dpc"></canvas></div></div><div class="chart-box"><h3>25Δ RR (pts) 走势</h3><div style="position:relative;height:230px"><canvas id="trend_rr"></canvas></div></div><div class="chart-box"><h3>Max Pain 走势</h3><div style="position:relative;height:230px"><canvas id="trend_mp"></canvas></div></div><div class="chart-box"><h3>净 Delta 走势</h3><div style="position:relative;height:230px"><canvas id="trend_net_delta"></canvas></div></div><div class="chart-box"><h3>净 Gamma 走势</h3><div style="position:relative;height:230px"><canvas id="trend_net_gamma"></canvas></div></div><div class="chart-box"><h3>净 Vega 走势</h3><div style="position:relative;height:230px"><canvas id="trend_net_vega"></canvas></div></div></div>
 
-<div class="sec-head"><h2>6 · 交易要点</h2><div class="sec-filter" id="f_tk"></div></div>
+<div class="sec-head"><h2>6 · 交易要点</h2></div>
 <div class="kv" id="takeaways"></div>
 <footer>KC 咖啡期权 · 更新于 2026-11-16 · 红涨绿跌 · 数据单位 美分/磅</footer>
 </div>
@@ -100,7 +97,8 @@ const CHARTS={smile:null,oi:{},chg:{}};
 const TRENDCH={};
 const TKEYS=['fwd','pc','atm_iv','dpc','rr','mp','net_delta','net_gamma','net_vega'];
 const SECS=['cards','smile','greeks','oi','inter','tk'];
-const SECIDX={};
+let CUR=DATES.length-1;  // 全局日期：顶部筛选联动全节
+function renderAll(i){SECS.forEach(k=>RENDER[k](i));}
 Chart.defaults.font.family='-apple-system,"Segoe UI","Microsoft YaHei",sans-serif';
 Chart.defaults.color='#6b6b6b';
 
@@ -113,40 +111,40 @@ function tagLabel(t,i){const s=HISTORY[i].summary[t];return s.mm+'月 '+(s.optio
 function trendLabel(t){const m=TAGMETA[t];return m?(m.mm+'月 '+m.code):t}
 function chgSpan(v,d){return v!=null?`<span class="chg ${v>0?'up':'down'}">(${sgn(v,d)})</span>`:''}
 
-// ---------- 分节「日期筛选 年/月/日」 ----------
-function selEls(key){const b=document.getElementById('f_'+key);return{y:b.querySelector('.fy'),m:b.querySelector('.fm'),d:b.querySelector('.fd')}}
-function initFilter(key){
-  const box=document.getElementById('f_'+key);
+// ---------- 全局「日期筛选 年/月/日」（顶部唯一，联动全节） ----------
+function selEls(){const b=document.getElementById('f_cards');return{y:b.querySelector('.fy'),m:b.querySelector('.fm'),d:b.querySelector('.fd')}}
+function initFilter(){
+  const box=document.getElementById('f_cards');
   box.innerHTML='日期筛选（年/月/日）：<select class="fy"></select> 年 <select class="fm"></select> 月 <select class="fd"></select> 日';
-  const {y,m,d}=selEls(key);
-  y.addEventListener('change',()=>{rebuildMD(key);onFilterChange(key)});
-  m.addEventListener('change',()=>{rebuildD(key);onFilterChange(key)});
-  d.addEventListener('change',()=>onFilterChange(key));
+  const {y,m,d}=selEls();
+  y.addEventListener('change',()=>{rebuildMD();onFilterChange()});
+  m.addEventListener('change',()=>{rebuildD();onFilterChange()});
+  d.addEventListener('change',()=>onFilterChange());
 }
-function fillFilter(key,df){
-  const {y,m,d}=selEls(key);
+function fillFilter(df){
+  const {y}=selEls();
   const ys=[...new Set(DATES.map(x=>x.slice(0,4)))];
   y.innerHTML=ys.map(v=>`<option ${v===df.slice(0,4)?'selected':''}>${v}</option>`).join('');
-  rebuildMD(key);
+  rebuildMD();
 }
-function rebuildMD(key){
-  const {y,m}=selEls(key);
+function rebuildMD(){
+  const {y,m}=selEls();
   const ms=[...new Set(DATES.filter(x=>x.slice(0,4)===y.value).map(x=>x.slice(5,7)))];
   if(!ms.includes(m.value))m.value=ms[ms.length-1];
   m.innerHTML=ms.map(v=>`<option ${v===m.value?'selected':''}>${v}</option>`).join('');
-  rebuildD(key);
+  rebuildD();
 }
-function rebuildD(key){
-  const {y,m,d}=selEls(key);
+function rebuildD(){
+  const {y,m,d}=selEls();
   const ds=DATES.filter(x=>x.slice(0,7)===y.value+'-'+m.value).map(x=>x.slice(8,10));
   if(!ds.includes(d.value))d.value=ds[ds.length-1];
   d.innerHTML=ds.map(v=>`<option ${v===d.value?'selected':''}>${v}</option>`).join('');
 }
-function onFilterChange(key){
-  const {y,m,d}=selEls(key);
+function onFilterChange(){
+  const {y,m,d}=selEls();
   const df=y.value+'-'+m.value+'-'+d.value;
   const i=DATES.indexOf(df);
-  if(i>=0){SECIDX[key]=i;RENDER[key](i);}
+  if(i>=0){CUR=i;renderAll(i);}
 }
 
 // ---------- 核心指标卡 ----------
@@ -363,12 +361,10 @@ function drawTrend(){
 }
 
 // ---------- 初始化 ----------
-SECS.forEach(key=>{
-  initFilter(key);
-  SECIDX[key]=DATES.length-1;
-  fillFilter(key,DATES[SECIDX[key]]);
-  RENDER[key](SECIDX[key]);
-});
+initFilter();
+CUR=DATES.length-1;
+fillFilter(DATES[CUR]);
+renderAll(CUR);
 document.querySelectorAll('.range-btn').forEach(b=>b.addEventListener('click',()=>{TREND_RANGE=b.dataset.r;applyTrendRange();}));
 trS.addEventListener('change',()=>{TREND_RANGE='custom';drawTrend();localStorage.setItem('wb_kc_trend_range','custom');});
 trE.addEventListener('change',()=>{TREND_RANGE='custom';drawTrend();localStorage.setItem('wb_kc_trend_range','custom');});
@@ -378,7 +374,7 @@ applyTrendRange();
 document.querySelectorAll('.srange-btn').forEach(b=>b.addEventListener('click',()=>{
   SMILE_RANGE=b.dataset.r;
   document.querySelectorAll('.srange-btn').forEach(x=>x.classList.toggle('active',x===b));
-  renderSmile(SECIDX['smile']);
+  renderSmile(CUR);
 }));
 document.querySelectorAll('.srange-btn').forEach(x=>x.classList.toggle('active',x.dataset.r===SMILE_RANGE));
 </script></body></html>
