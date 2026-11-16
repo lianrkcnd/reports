@@ -1,0 +1,5 @@
+.index/
+.scratch_*/
+__pycache__/
+*.pyc
+*.log
