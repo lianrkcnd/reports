@@ -17,6 +17,8 @@
     .card { background: #161b22 !important; border-color: #30363d !important; }
     a { color: #58a6ff; }
     .empty { color: #8b949e; }
+    details.mgroup { border-color: #30363d !important; background: #0d1117 !important; }
+    details.mgroup > summary { color: #e6edf3; }
   }
   h1 { font-size: 1.5em; margin: 0 0 4px; }
   .sub { color: #656d76; font-size: .95em; margin-bottom: 24px; }
@@ -25,6 +27,28 @@
     padding: 16px 20px; margin-bottom: 20px;
   }
   h2 { font-size: 1.1em; margin: 0 0 12px; }
+  /* 按月折叠组 */
+  details.mgroup {
+    border: 1px solid #d8dee4; border-radius: 8px;
+    background: #ffffff; margin-bottom: 10px;
+    overflow: hidden;
+  }
+  details.mgroup:last-child { margin-bottom: 0; }
+  details.mgroup > summary {
+    cursor: pointer; user-select: none;
+    padding: 9px 14px; font-size: .98em; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    list-style: none;
+  }
+  details.mgroup > summary::-webkit-details-marker { display: none; }
+  details.mgroup > summary::before {
+    content: '▸'; color: #656d76; font-size: .9em;
+    transition: transform .15s ease; display: inline-block;
+  }
+  details.mgroup[open] > summary::before { transform: rotate(90deg); }
+  details.mgroup > summary:hover { background: #f6f8fa; }
+  details.mgroup > summary .cnt { color: #656d76; font-weight: 400; font-size: .85em; }
+  details.mgroup > ul { padding: 2px 14px 6px; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { padding: 7px 0; border-bottom: 1px solid #d8dee466; display: flex; justify-content: space-between; gap: 12px; }
   li:last-child { border-bottom: none; }
@@ -36,7 +60,7 @@
 </head>
 <body>
   <h1>📊 日报 / 周报</h1>
-  <div class="sub">点击标题即可在线阅读 · 列表自动同步自 GitHub 仓库</div>
+  <div class="sub">点击标题即可在线阅读 · 按月折叠，默认展开最近一个月 · 列表自动同步自 GitHub 仓库</div>
 
   <div class="card">
     <h2>📅 日报</h2>
@@ -54,6 +78,36 @@
 
 <script>
 const BASE = location.origin + location.pathname.replace(/index\.html$/, '');
+// 从文件名解析月份分组：YYYY-MM-DD-... → YYYY年MM月；无日期前缀 → 其他
+function monthOf(name) {
+  const m = name.match(/^(\d{4})-(\d{2})-\d{2}/);
+  return m ? `${m[1]}年${m[2]}月` : '其他';
+}
+function renderGrouped(elId, reports) {
+  const el = document.getElementById(elId);
+  if (!reports.length) { el.innerHTML = '<li class="empty">暂无内容</li>'; return; }
+  // 按月分组（保持排序：报告已按名称倒序 → 组内新的在前）
+  const groups = [];
+  const idx = {};
+  for (const f of reports) {
+    const g = monthOf(f.name);
+    if (!(g in idx)) { idx[g] = groups.length; groups.push({ label: g, items: [] }); }
+    groups[idx[g]].items.push(f);
+  }
+  // 「其他」组固定排最后，其余按标签倒序（YYYY年MM月 字符序即时间序）
+  groups.sort((a, b) => {
+    if (a.label === '其他') return 1;
+    if (b.label === '其他') return -1;
+    return b.label.localeCompare(a.label);
+  });
+  el.innerHTML = groups.map((g, i) => `
+    <details class="mgroup"${i === 0 ? ' open' : ''}>
+      <summary>${g.label} <span class="cnt">· ${g.items.length} 篇</span></summary>
+      <ul>${g.items.map(f =>
+        `<li><a href="${BASE}${elId}/${encodeURIComponent(f.name)}" target="_blank">${f.name}</a></li>`
+      ).join('')}</ul>
+    </details>`).join('');
+}
 async function load(kind, elId) {
   const ul = document.getElementById(elId);
   try {
@@ -63,11 +117,7 @@ async function load(kind, elId) {
     const reports = files
       .filter(f => f.type === 'file' && /\.(html?|pdf)$/i.test(f.name) && !f.name.startsWith('.'))
       .sort((a, b) => b.name.localeCompare(a.name)); // 新的在前
-    ul.innerHTML = reports.length
-      ? reports.map(f =>
-          `<li><a href="${BASE}${kind}/${encodeURIComponent(f.name)}" target="_blank">${f.name}</a></li>`
-        ).join('')
-      : '<li class="empty">暂无内容</li>';
+    renderGrouped(elId, reports);
   } catch (e) {
     ul.innerHTML = `<li class="empty">列表加载失败（${e.message}），可直接访问 ${kind}/ 目录</li>`;
   }
